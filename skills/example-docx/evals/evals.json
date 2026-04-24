@@ -1,0 +1,35 @@
+{
+  "skill_name": "example-docx",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Create a Word document called report.docx with the title 'Q1 Report' and a paragraph saying 'Revenue grew 10%.'",
+      "expected_output": "Python code that writes a .docx file with the requested heading and paragraph.",
+      "assertions": [
+        "The response mentions python-docx or docx.Document",
+        "The response includes the literal string 'Q1 Report'",
+        "The response calls .save() with a .docx filename"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "워드 파일로 만들어줘. 제목은 '회의록', 본문은 '오늘 회의에서 예산 확정됨.'",
+      "expected_output": "Python code producing a .docx with Korean title and body.",
+      "assertions": [
+        "The response uses python-docx",
+        "The response includes the literal string '회의록'",
+        "The response produces a .docx file"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Convert this text into a Word doc: 'Item 1', 'Item 2', 'Item 3' as bullet points.",
+      "expected_output": "Python code that creates a .docx with three bullet points.",
+      "assertions": [
+        "The response creates a Word document",
+        "The response includes logic for bullet list formatting",
+        "The response includes 'Item 1', 'Item 2', and 'Item 3'"
+      ]
+    }
+  ]
+}
