@@ -1,0 +1,24 @@
+# Skill Evolution configuration.
+# Copy to .skill-evolution/config.yaml to override defaults. The runtime
+# merges this file on top of built-in defaults in skill_evolution.config.
+
+backends:
+  primary: anthropic
+  anthropic:
+    model: claude-sonnet-4-6
+    max_tokens: 4096
+
+evolution:
+  auto: light            # GEPA budget: light | medium | heavy
+  min_traces_before_evolve: 5
+  min_evals_before_evolve: 3
+  train_split: 0.6       # skill-creator's 60/40 convention
+
+constraints:
+  max_skill_lines: 500
+  description_ratio_min: 0.2
+  description_ratio_max: 3.0
+
+paths:
+  skills_dir: skills
+  runtime_dir: .skill-evolution
