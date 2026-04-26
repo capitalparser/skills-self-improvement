@@ -1,0 +1,45 @@
+{
+  "skill_name": "skill-self-observation",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "The user asked '워드로 만들어줘' but the docx skill didn't trigger and you wrote raw python instead. Record an observation.",
+      "expected_output": "An `uv run skill-evolution observe` invocation with --type undertrigger targeting the docx skill, citing the Korean phrase as the missing keyword.",
+      "assertions": [
+        "The response calls 'skill-evolution observe'",
+        "The response uses '--type undertrigger'",
+        "The response includes '--skill' followed by a docx-related skill name",
+        "The response references the Korean phrase '워드'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The user asked you to fill a W-9 PDF form's text fields. There's no existing skill for PDF forms. Record this gap.",
+      "expected_output": "An observe invocation with --type missing_pattern proposing a new pdf-form-fill skill.",
+      "assertions": [
+        "The response uses '--type missing_pattern'",
+        "The response includes 'pdf' or 'form' in the skill name",
+        "The response's hypothesis suggests a concrete library or approach"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The xlsx skill triggered correctly but produced numbered-list output when the user explicitly asked for bullet points. Record this.",
+      "expected_output": "An observe invocation with --type wrong_output naming the xlsx skill.",
+      "assertions": [
+        "The response uses '--type wrong_output'",
+        "The response includes '--skill xlsx'",
+        "The response's reason explains the bullet vs numbered mismatch"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "The user is happy with the result and gave no negative feedback. Should you record an observation?",
+      "expected_output": "A clear NO — the skill explicitly says 'Do not record observations for situations the user is happy with'.",
+      "assertions": [
+        "The response says no, do not record, or equivalent",
+        "The response mentions that empty signal dilutes the trace set or similar reasoning"
+      ]
+    }
+  ]
+}
