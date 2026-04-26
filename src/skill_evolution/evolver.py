@@ -21,7 +21,7 @@ class SkillEvolver:
         self.compressor = TraceCompressor(config.summaries_dir)
         self.reporter = DiffReporter(config.reports_dir)
 
-    def evolve(self, skill_name: str) -> Path | None:
+    def evolve(self, skill_name: str):
         import dspy  # lazy
 
         from .backends import load_primary_lm, load_reflection_lm

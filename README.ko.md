@@ -25,7 +25,7 @@ Claude Code `SKILL.md` 파일을 **대역 외(out-of-band)로 스스로 진화**
 
 - **세션 중**: `observe`가 JSON 한 줄만 추가. API 호출 없음.
 - **세션 후**: `evolve`가 DSPy `ChainOfThought` + `GEPA` 옵티마이저 실행. 점수 신호는 skill-creator의 `evals.json`에서 얻음.
-- **Human Gate**: 자동으로 `SKILL.md`를 수정하지 않음. 사람이 검토 후 직접 `cp`하고 커밋.
+- **Human Gate**: 자동으로 `SKILL.md`를 수정하지 않음. 검토 후 `apply` 명령이 파일을 교체하고 리포트를 아카이브.
 
 ---
 
@@ -189,7 +189,10 @@ uv run skill-evolution compress --all
 uv run skill-evolution evolve --skill SKILL_NAME
 ```
 
-`ANTHROPIC_API_KEY` 필요. 결과는 `.skill-evolution/reports/{skill}-{ts}.md`.
+`ANTHROPIC_API_KEY` 필요. 두 개의 자매 파일 생성:
+
+- `.skill-evolution/reports/{skill}-{ts}.md` — 사람이 읽는 리포트 (diff, 게이트 결과, root cause, 신뢰도).
+- `.skill-evolution/reports/{skill}-{ts}.proposed.md` — `apply`가 그대로 복사할 개선된 SKILL.md 전문.
 
 동작 흐름:
 
@@ -198,7 +201,31 @@ uv run skill-evolution evolve --skill SKILL_NAME
 3. `SkillFailureAnalyzer`(ChainOfThought)로 root_cause 파악.
 4. `SkillImprover`를 `dspy.GEPA(auto="light", reflection_lm=...)`로 컴파일 (evals 60/40 train/val 분할).
 5. 검증 게이트 3개 적용. 실패 시에도 리포트는 작성되고 `FAILED at {gate}` 표시.
-6. unified diff 포함 리포트 기록.
+6. 리포트 + 사이드카 기록.
+
+### `apply` — 개선안 반영 (Human Gate)
+
+```bash
+# 명시적: 특정 리포트 적용
+uv run skill-evolution apply --report .skill-evolution/reports/<skill>-<ts>.md
+
+# 암묵적: 해당 skill의 가장 최근 미적용 리포트 적용
+uv run skill-evolution apply --skill SKILL_NAME
+```
+
+동작:
+
+1. `{skill}-{ts}.proposed.md` (개선된 SKILL.md 전문) 읽음.
+2. `skills/{skill}/SKILL.md` 덮어쓰기.
+3. 두 파일을 `.skill-evolution/reports/applied/`로 이동.
+4. 권장 `git add && git commit` 명령 출력.
+
+거부하려면 두 파일을 삭제:
+
+```bash
+rm .skill-evolution/reports/<skill>-<ts>.md \
+   .skill-evolution/reports/<skill>-<ts>.proposed.md
+```
 
 ---
 
@@ -239,9 +266,11 @@ skills-self-improvement/
 │
 └── .skill-evolution/                 런타임 데이터 (*.example 외엔 gitignore)
     ├── config.yaml.example
-    ├── traces/{skill}.jsonl          관찰 기록 (append-only)
-    ├── summaries/{skill}.md          규칙 기반 요약
-    └── reports/{skill}-{ts}.md       개선안 리포트
+    ├── traces/{skill}.jsonl                 관찰 기록 (append-only)
+    ├── summaries/{skill}.md                 규칙 기반 요약
+    ├── reports/{skill}-{ts}.md              개선안 리포트 (diff + 메타데이터)
+    ├── reports/{skill}-{ts}.proposed.md     개선된 SKILL.md 전문
+    └── reports/applied/                     `apply` 후 아카이브
 ```
 
 ---

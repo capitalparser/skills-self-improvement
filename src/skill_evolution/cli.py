@@ -10,6 +10,7 @@ from rich.table import Table
 from .compressor import TraceCompressor
 from .config import ensure_runtime_dirs, load_config
 from .logger import ALLOWED_FAILURE_TYPES, TraceEntry, TraceLogger
+from .reporter import apply_report, latest_report
 
 app = typer.Typer(help="Skill Self-Evolution CLI")
 console = Console()
@@ -69,6 +70,8 @@ def status(
     pending_reports: dict[str, int] = {}
     if config.reports_dir.exists():
         for report in config.reports_dir.glob("*.md"):
+            if report.name.endswith(".proposed.md"):
+                continue
             skill_name = report.stem.rsplit("-", 1)[0]
             pending_reports[skill_name] = pending_reports.get(skill_name, 0) + 1
 
@@ -133,11 +136,64 @@ def evolve(
 
     config = _config(project_root)
     evolver = SkillEvolver(config)
-    report_path = evolver.evolve(skill)
-    if report_path is None:
+    written = evolver.evolve(skill)
+    if written is None:
         console.print("[yellow]no report produced[/yellow] (see messages above)")
         raise typer.Exit(code=1)
-    console.print(f"[green]report written[/green] {report_path.relative_to(config.project_root)}")
+    rel_report = written.report_path.relative_to(config.project_root)
+    rel_proposed = written.proposed_path.relative_to(config.project_root)
+    console.print(f"[green]report[/green]   {rel_report}")
+    console.print(f"[green]proposed[/green] {rel_proposed}")
+    console.print(f"[dim]apply with:[/dim] uv run skill-evolution apply --report {rel_report}")
+
+
+@app.command()
+def apply(
+    report: Path | None = typer.Option(
+        None, help="Path to the report markdown to apply (.skill-evolution/reports/<skill>-<ts>.md)"
+    ),
+    skill: str | None = typer.Option(
+        None, help="Skill name; applies the most recent unapplied report for this skill"
+    ),
+    project_root: Path | None = typer.Option(None, help="Project root (defaults to CWD)"),
+) -> None:
+    """Overwrite SKILL.md from a proposal and archive the report.
+
+    Provide either --report PATH or --skill NAME (latest report wins).
+    The previous SKILL.md content is replaced; commit afterwards using the
+    git command this prints.
+    """
+    config = _config(project_root)
+
+    if report is None and skill is None:
+        raise typer.BadParameter("provide --report PATH or --skill NAME")
+    if report is None:
+        report = latest_report(config.reports_dir, skill)  # type: ignore[arg-type]
+        if report is None:
+            console.print(f"[yellow]no pending report for skill[/yellow] {skill!r}")
+            raise typer.Exit(code=1)
+    if not report.is_absolute():
+        report = (config.project_root / report).resolve()
+    if not report.exists():
+        console.print(f"[red]report not found[/red] {report}")
+        raise typer.Exit(code=1)
+
+    try:
+        result = apply_report(
+            report,
+            skills_dir=config.skills_dir,
+            reports_dir=config.reports_dir,
+            project_root=config.project_root,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        console.print(f"[red]apply failed[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    rel_skill = result.skill_path.relative_to(config.project_root)
+    rel_archive = result.archived_report.relative_to(config.project_root)
+    console.print(f"[green]applied[/green] {rel_skill}")
+    console.print(f"[dim]archived to[/dim] {rel_archive}")
+    console.print(f"[dim]suggested commit:[/dim]\n{result.suggested_commit}")
 
 
 if __name__ == "__main__":

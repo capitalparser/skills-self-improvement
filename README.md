@@ -29,7 +29,8 @@ written to `.skill-evolution/reports/` for a human to review before applying.
 - **In-session**: `observe` appends one JSON line. No API calls.
 - **Out-of-band**: `evolve` runs DSPy `ChainOfThought` + `GEPA` optimizer, using
   skill-creator's `evals.json` as the metric signal.
-- **Human gate**: nothing mutates `SKILL.md` automatically. You `cp` and commit.
+- **Human gate**: nothing mutates `SKILL.md` automatically. After review,
+  `apply` swaps the file in and archives the report.
 
 ---
 
@@ -198,7 +199,12 @@ recurring hypotheses, and recent examples. No LLM calls.
 uv run skill-evolution evolve --skill SKILL_NAME
 ```
 
-Requires `ANTHROPIC_API_KEY`. Writes `.skill-evolution/reports/{skill}-{ts}.md`.
+Requires `ANTHROPIC_API_KEY`. Writes two sibling files:
+
+- `.skill-evolution/reports/{skill}-{ts}.md` — human-readable report (diff,
+  gate results, root cause, confidence).
+- `.skill-evolution/reports/{skill}-{ts}.proposed.md` — the full improved
+  SKILL.md, ready to be copied verbatim by `apply`.
 
 Behaviour:
 
@@ -209,7 +215,31 @@ Behaviour:
    against a 60/40 train/val split of the evals.
 5. Applies three validation gates. If any fails, the report is still written
    but marked as `FAILED at {gate}`.
-6. Writes the proposal report with unified diff.
+6. Writes the proposal report and sidecar.
+
+### `apply` — accept a proposal (Human Gate)
+
+```bash
+# explicit: apply a specific report
+uv run skill-evolution apply --report .skill-evolution/reports/<skill>-<ts>.md
+
+# implicit: apply the most recent unapplied report for a skill
+uv run skill-evolution apply --skill SKILL_NAME
+```
+
+Behaviour:
+
+1. Reads `{skill}-{ts}.proposed.md` (the full improved SKILL.md).
+2. Overwrites `skills/{skill}/SKILL.md`.
+3. Moves both files to `.skill-evolution/reports/applied/`.
+4. Prints a suggested `git add && git commit` command.
+
+To reject a proposal instead, just delete both files:
+
+```bash
+rm .skill-evolution/reports/<skill>-<ts>.md \
+   .skill-evolution/reports/<skill>-<ts>.proposed.md
+```
 
 ---
 
@@ -250,9 +280,11 @@ skills-self-improvement/
 │
 └── .skill-evolution/                 runtime data (gitignored except *.example)
     ├── config.yaml.example
-    ├── traces/{skill}.jsonl          append-only observations
-    ├── summaries/{skill}.md          rule-based compression
-    └── reports/{skill}-{ts}.md       proposed diffs
+    ├── traces/{skill}.jsonl                 append-only observations
+    ├── summaries/{skill}.md                 rule-based compression
+    ├── reports/{skill}-{ts}.md              proposed diff + metadata
+    ├── reports/{skill}-{ts}.proposed.md     full improved SKILL.md
+    └── reports/applied/                     archived after `apply`
 ```
 
 ---
